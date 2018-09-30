@@ -27,21 +27,32 @@ int main (int argc, string argv[]){
     // make case for upper case and also spaces
     printf("ciphertext: ");
     for(int i = 0; i < strlen(plain); i++)
-    {
-        int ai = plain[i] - 97;
-        int mod = (ai + k) % 26;
-        printf("%c", (97 + mod));
+    {   //case for lowercase
+        if islower(plain[i]){
+
+            // can this be turned into a function ? but for lower a is 97 for upper it is 65
+            int ai = plain[i] - 97;
+            int mod = (ai + k) % 26;
+            printf("%c", (97 + mod));
+
+        }
+        //case for uppercase
+        else if isupper(plain[i]){
+
+            // can this be turned into a function ? but for lower a is 97 for upper it is 65
+            int ai = plain[i] - 65;
+            int mod = (ai + k) % 26;
+            printf("%c", (65 + mod));
+
+        }
+        // assuming rest of cases are integers, space, and special chars (!isalpha)
+        else{
+            printf("%c", plain[i]);
+        }
 
     }
 
     printf("\n");
 
-    /*
-    printf("k is %i\n", k);
-
-    printf("num is :%i\n",'A' + 20);
-
-    printf("%i\n", 5 % 26 );
-    */
 
 }
