@@ -1,0 +1,14 @@
+
+{% extends "layout.html" %}
+
+{% block body %}
+
+    <ul>
+        {% for album in albums %}
+
+            <li>{{ album["Title"] }}</li>
+
+        {% endfor %}
+    </ul>
+
+{% endblock %}
