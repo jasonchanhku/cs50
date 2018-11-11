@@ -40,7 +40,8 @@ db = SQL("sqlite:///finance.db")
 @login_required
 def index():
     """Show portfolio of stocks"""
-    return apology("NO HOME PAGE")
+
+    return render_template("index.html")
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -109,7 +110,17 @@ def logout():
 @login_required
 def quote():
     """Get stock quote."""
-    return apology("TODO")
+    if request.method == "POST":
+        quote = lookup(request.form.get("symbol"))
+
+        if not quote:
+            return apology("Stock quote not valid!")
+        else:
+            return render_template("quoted.html", name = quote["name"], price = quote["price"], symbol=quote["symbol"])
+
+
+    else:
+        return render_template("quote.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -142,8 +153,8 @@ def register():
             print("user id is: ", result)
             session["user_id"] = result
             return redirect("/")
-
-    return render_template("register.html")
+    else:
+        return render_template("register.html")
 
 
 @app.route("/sell", methods=["GET", "POST"])
