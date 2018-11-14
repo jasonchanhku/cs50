@@ -41,22 +41,72 @@ db = SQL("sqlite:///finance.db")
 def index():
     """Show portfolio of stocks"""
 
-    return render_template("index.html")
+    users = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id = session["user_id"])
+    stocks = db.execute("SELECT symbol, SUM(shares) as total_shares FROM transactions WHERE user_id = :user_id GROUP BY symbol HAVING total_shares > 0",
+    user_id = session["user_id"])
+    quotes = {}
+
+    sums = []
+    for stock in stocks:
+        quotes[stock["symbol"]] = lookup(stock["symbol"])
+        sums.append(quotes[stock["symbol"]]["price"] * stock["total_shares"])
+    cash_remaining = users[0]["cash"]
+    total = cash_remaining + sum(sums)
+
+    return render_template("index.html", quotes=quotes, stocks=stocks, total=total, cash_remaining=cash_remaining)
 
 
 @app.route("/buy", methods=["GET", "POST"])
 @login_required
 def buy():
     """Buy shares of stock"""
-    return apology("TODO")
+
+    if request.method == "POST":
+        quote = lookup(request.form.get("symbol"))
+        print("quote is: ", quote)
+        print('quote price is: ', quote["price"])
+        if not quote:
+            return apology("Invalid Quote applied")
+
+        try:
+            shares = int((request.form.get("shares")))
+            print("Value is: ", shares)
+        except:
+            return apology("Invalid shares were input")
+
+        rows = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id = session["user_id"])
+
+        cash_remaining = rows[0]["cash"]
+        price_per_share = quote["price"]
+        total_price = price_per_share * shares
+
+        if total_price > cash_remaining:
+            return apology("Insufficient cash ! Please top up more !")
+
+        db.execute("UPDATE users SET cash = cash - :price WHERE id = :user_id", price=total_price, user_id=session["user_id"])
+        db.execute("INSERT INTO transactions (user_id, symbol, shares, price_per_share) VALUES(:user_id, :symbol, :shares, :price_per_share)",
+        user_id = session["user_id"],
+        symbol = quote["symbol"],
+        shares = shares,
+        price_per_share = quote["price"])
+
+        flash("Purchase Successful")
+
+
+        return redirect("/")
+
+    else:
+        return render_template("buy.html")
 
 
 @app.route("/history")
 @login_required
 def history():
     """Show history of transactions"""
-    return apology("TODO")
+    transactions = db.execute(
+        "SELECT symbol, shares, price_per_share, created_at FROM transactions WHERE user_id = :user_id ORDER BY created_at ASC", user_id=session["user_id"])
 
+    return render_template("history.html", transactions=transactions)
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -116,7 +166,7 @@ def quote():
         if not quote:
             return apology("Stock quote not valid!")
         else:
-            return render_template("quoted.html", name = quote["name"], price = quote["price"], symbol=quote["symbol"])
+            return render_template("quoted.html", name = quote["name"], price = quote["price"],  symbol=quote["symbol"])
 
 
     else:
@@ -161,7 +211,42 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
-    return apology("TODO")
+    stocks = list(db.execute("SELECT DISTINCT symbol FROM transactions WHERE user_id = :user_id", user_id = session["user_id"]))
+    if request.method == "POST":
+
+        if not stocks:
+            return apology("Missing Symbol")
+
+        quote = lookup(request.form.get("symbol"))
+
+        if not quote:
+            return apology("No such symbol")
+
+        shares = int(request.form.get("shares"))
+
+        rows = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id=session["user_id"])
+
+        # How much $$$ the user still has in her account
+        cash_remaining = rows[0]["cash"]
+        price_per_share = quote["price"]
+
+        # Calculate the price of requested shares
+        total_price = price_per_share * shares
+
+        # Book keeping (TODO: should be wrapped with a transaction)
+        db.execute("UPDATE users SET cash = cash + :price WHERE id = :user_id", price=total_price, user_id=session["user_id"])
+        db.execute("INSERT INTO transactions (user_id, symbol, shares, price_per_share) VALUES(:user_id, :symbol, :shares, :price)",
+                   user_id=session["user_id"],
+                   symbol=request.form.get("symbol"),
+                   shares=-shares,
+                   price=price_per_share)
+
+        flash("Sold!")
+
+        return redirect("/")
+
+    else:
+        return render_template("sell.html", stocks_list = stocks)
 
 
 def errorhandler(e):
