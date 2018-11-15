@@ -44,6 +44,7 @@ def index():
     users = db.execute("SELECT cash FROM users WHERE id = :user_id", user_id = session["user_id"])
     stocks = db.execute("SELECT symbol, SUM(shares) as total_shares FROM transactions WHERE user_id = :user_id GROUP BY symbol HAVING total_shares > 0",
     user_id = session["user_id"])
+    name = db.execute("SELECT username FROM users WHERE id = :user_id", user_id = session["user_id"])
     quotes = {}
 
     sums = []
@@ -52,8 +53,8 @@ def index():
         sums.append(quotes[stock["symbol"]]["price"] * stock["total_shares"])
     cash_remaining = users[0]["cash"]
     total = cash_remaining + sum(sums)
-
-    return render_template("index.html", quotes=quotes, stocks=stocks, total=total, cash_remaining=cash_remaining)
+    username = name[0]["username"]
+    return render_template("index.html", quotes=quotes, stocks=stocks, total=total, cash_remaining=cash_remaining, username = username)
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -247,6 +248,40 @@ def sell():
 
     else:
         return render_template("sell.html", stocks_list = stocks)
+
+@app.route("/change", methods=["GET", "POST"])
+@login_required
+def change():
+
+    """Change Password"""
+    # User reached route via POST (as by submitting a form via POST)
+    if request.method == "POST":
+
+        rows = db.execute("SELECT * FROM users WHERE id = :user_id",
+                          user_id = session["user_id"])
+
+        # Ensure old password is correct
+        if not check_password_hash(rows[0]["hash"],request.form.get("old_password")):
+            return apology("old password is incorrect!", 403)
+
+        # Ensure password was submitted
+        elif not request.form.get("new_password"):
+            return apology("must provide new password", 403)
+
+        elif not request.form.get("new_password_again"):
+            return apology("must provide new password again", 403)
+
+        elif request.form.get("new_password") != request.form.get("new_password_again"):
+            return apology("new passwords do not match!", 403)
+
+        db.execute("UPDATE users SET hash = :new_password WHERE id = :user_id", new_password=generate_password_hash(request.form.get("new_password")), user_id=session["user_id"])
+
+        flash("Password Changed!")
+
+        return redirect("/")
+
+    else:
+        return render_template("change.html")
 
 
 def errorhandler(e):

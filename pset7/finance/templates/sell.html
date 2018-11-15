@@ -10,7 +10,7 @@
             <select class="form-control" name="symbol">
                 <option disabled selected value="">Symbol</option>
                 {% for stock in stocks_list %}
-                    <option>stock</option>
+                    <option>{{ stock["symbol"] }}</option>
                 {% endfor %}
             </select>
         </div>
